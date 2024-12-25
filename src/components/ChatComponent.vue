@@ -55,20 +55,28 @@
             </q-btn>
           </div>
 
-          <div class="chat-messages q-pa-sm" ref="messagesContainer" @dragover.prevent="handleDragOver" @dragleave.prevent="handleDragLeave" @drop.prevent="handleDrop" :class="{ 'drag-over': isDragOver }">
-            <MessageBubble
-              v-for="message in selectedChat.messages"
-              :key="message.id"
-              :is-own="message.userId === currentUserId"
-              :text="message.text"
-              :time="message.time"
-              :username="message.username"
-              :avatar="message.avatar"
-              :status="message.status"
-              :files="message.files"
-              @edit-message="editMessage(message)"
-              @delete-message="deleteMessage(message, $event)"
-            />
+          <div class="chat-messages q-pa-sm" ref="messagesContainer">
+            <div 
+              class="messages-drop-zone" 
+              @dragover.prevent="handleDragOver" 
+              @dragleave.prevent="handleDragLeave" 
+              @drop.prevent="handleDrop" 
+              :class="{ 'drag-over': isDragOver }"
+            >
+              <MessageBubble
+                v-for="message in selectedChat.messages"
+                :key="message.id"
+                :is-own="message.userId === currentUserId"
+                :text="message.text"
+                :time="message.time"
+                :username="message.username"
+                :avatar="message.avatar"
+                :status="message.status"
+                :files="message.files"
+                @edit-message="editMessage(message)"
+                @delete-message="deleteMessage(message, $event)"
+              />
+            </div>
           </div>
 
           <ChatInputBox
@@ -204,29 +212,11 @@ const sendMessage = (text) => {
 }
 
 const handleAttachment = ({ files, description }) => {
-  if (!selectedChat.value || !files.length) return
-
-  // Создаем одно сообщение для всех файлов
-  const message = {
-    id: Date.now() + Math.random(),
-    userId: currentUserId,
-    username: 'Вы',
-    text: description || '',
-    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    status: 'sent',
-    files: files.map(file => ({
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
-    }))
-  }
-
-  selectedChat.value.messages.push(message)
-  selectedChat.value.lastMessage = description || 'Файлы'
-  selectedChat.value.lastMessageTime = message.time
-
-  scrollToBottom()
+  if (!selectedChat.value) return
+  
+  selectedFiles.value = files || []
+  currentMessage.value = description
+  showUploadDialog.value = true
 }
 
 const createNewChat = async () => {
@@ -352,15 +342,37 @@ const handleDrop = (event) => {
   const files = Array.from(event.dataTransfer.files)
   if (files.length > 0) {
     selectedFiles.value = files
-    currentMessage.value = document.querySelector('.custom-textarea').value
     showUploadDialog.value = true
   }
 }
 
 const handleUpload = ({ files, description }) => {
-  handleAttachment({ files, description })
+  if (!selectedChat.value || !files.length) return
+
+  // Создаем одно сообщение для всех файлов
+  const message = {
+    id: Date.now() + Math.random(),
+    userId: currentUserId,
+    username: 'Вы',
+    text: description || '',
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    status: 'sent',
+    files: files.map(file => ({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+    }))
+  }
+
+  selectedChat.value.messages.push(message)
+  selectedChat.value.lastMessage = description || 'Файлы'
+  selectedChat.value.lastMessageTime = message.time
+
+  scrollToBottom()
   selectedFiles.value = []
   currentMessage.value = ''
+  showUploadDialog.value = false
 }
 </script>
 
@@ -406,6 +418,25 @@ const handleUpload = ({ files, description }) => {
     background: var(--darkreader-bg--q-dark);
     padding: 16px;
     position: relative;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+    
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      background: var(--darkreader-border--q-dark);
+      border-radius: 3px;
+    }
+  }
+
+  .messages-drop-zone {
+    min-height: 100%;
+    position: relative;
+    width: 100%;
     
     &.drag-over {
       &::after {
@@ -422,18 +453,16 @@ const handleUpload = ({ files, description }) => {
         z-index: 1;
       }
     }
-    
-    &::-webkit-scrollbar {
-      width: 6px;
-    }
-    
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    
-    &::-webkit-scrollbar-thumb {
-      background: var(--darkreader-border--q-dark);
-      border-radius: 3px;
+
+    :deep(.image-preview) {
+      max-width: 100% !important;
+      width: 100%;
+
+      img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+      }
     }
   }
 

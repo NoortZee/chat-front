@@ -8,7 +8,35 @@
       </q-card-section>
 
       <q-card-section class="q-pt-sm">
-        <div class="files-preview q-mb-md">
+        <div 
+          class="drop-zone q-mb-md"
+          @dragover.prevent="isDragOver = true"
+          @dragleave.prevent="isDragOver = false"
+          @drop.prevent="handleDrop"
+          :class="{ 'drag-over': isDragOver }"
+        >
+          <div class="text-center">
+            <q-icon name="cloud_upload" size="48px" color="primary" />
+            <div class="text-h6 q-mt-sm">Перетащите файлы сюда</div>
+            <div class="text-caption q-mt-sm">или</div>
+            <q-btn
+              flat
+              color="primary"
+              label="Выберите файлы"
+              class="q-mt-sm"
+              @click="$refs.fileInput.click()"
+            />
+            <input
+              type="file"
+              ref="fileInput"
+              multiple
+              class="hidden"
+              @change="handleFileSelect"
+            />
+          </div>
+        </div>
+
+        <div class="files-preview q-mb-md" v-if="files.length > 0">
           <q-list separator>
             <q-item v-for="(file, index) in files" :key="index">
               <q-item-section avatar>
@@ -71,9 +99,15 @@ const show = ref(props.modelValue)
 const files = ref([])
 const description = ref('')
 const uploading = ref(false)
+const isDragOver = ref(false)
+const fileInput = ref(null)
 
 watch(() => props.modelValue, (val) => {
   show.value = val
+  if (val) {
+    files.value = [...(props.initialFiles || [])]
+    description.value = props.initialDescription || ''
+  }
 })
 
 watch(() => show.value, (val) => {
@@ -83,14 +117,6 @@ watch(() => show.value, (val) => {
     description.value = ''
   }
 })
-
-watch(() => props.initialFiles, (val) => {
-  files.value = val
-}, { immediate: true })
-
-watch(() => props.initialDescription, (val) => {
-  description.value = val
-}, { immediate: true })
 
 const getFileIcon = (type) => {
   if (type.startsWith('image/')) return 'image'
@@ -126,11 +152,45 @@ const uploadFiles = async () => {
     uploading.value = false
   }
 }
+
+const handleDrop = (event) => {
+  isDragOver.value = false
+  const droppedFiles = Array.from(event.dataTransfer.files)
+  files.value = [...files.value, ...droppedFiles]
+}
+
+const handleFileSelect = (event) => {
+  const selectedFiles = Array.from(event.target.files)
+  files.value = [...files.value, ...selectedFiles]
+  event.target.value = '' // Сброс input для возможности повторного выбора тех же файлов
+}
 </script>
 
 <style lang="scss" scoped>
 .files-preview {
   max-height: 200px;
   overflow-y: auto;
+}
+
+.drop-zone {
+  border: 2px dashed rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  transition: all 0.3s ease;
+  cursor: pointer;
+
+  &:hover {
+    border-color: var(--q-primary);
+  }
+
+  &.drag-over {
+    border-color: var(--q-primary);
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
+.hidden {
+  display: none;
 }
 </style> 

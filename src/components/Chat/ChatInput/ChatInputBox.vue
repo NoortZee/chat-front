@@ -7,15 +7,7 @@
         icon="attach_file"
         class="attach-btn q-mr-sm"
         @click="handleAttachmentClick"
-      >
-        <input
-          type="file"
-          ref="fileInput"
-          multiple
-          class="hidden-input"
-          @change="handleFileSelect"
-        />
-      </q-btn>
+      />
       <div class="custom-input-wrapper col">
         <textarea
           v-model="message"
@@ -52,7 +44,6 @@ const props = defineProps({
 const emit = defineEmits(['send', 'attachment-click', 'update:modelValue'])
 const message = ref(props.modelValue)
 const textareaRef = ref(null)
-const fileInput = ref(null)
 
 watch(() => props.modelValue, (newVal) => {
   message.value = newVal
@@ -81,17 +72,8 @@ const autoResize = () => {
 }
 
 const handleAttachmentClick = () => {
-  fileInput.value.click()
-}
-
-const handleFileSelect = (event) => {
-  const files = Array.from(event.target.files)
-  if (files.length > 0) {
-    emit('attachment-click', { files, description: message.value })
-    message.value = ''
-  }
-  // Сброс input для возможности повторного выбора тех же файлов
-  event.target.value = ''
+  emit('attachment-click', { files: [], description: message.value })
+  message.value = ''
 }
 </script>
 

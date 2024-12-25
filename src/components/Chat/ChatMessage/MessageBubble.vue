@@ -43,7 +43,7 @@
                   dense
                   icon="download"
                   @click.stop="downloadFile(file)"
-                />
+                  />
               </div>
             </div>
           </div>
@@ -110,14 +110,19 @@
 
     <!-- Модальное окно для просмотра изображений -->
     <q-dialog v-model="showImageDialog" maximized>
-      <q-card class="image-dialog">
-        <q-card-section class="image-dialog-header">
-          <q-btn flat round dense icon="close" v-close-popup />
-        </q-card-section>
-        <q-card-section class="image-dialog-content">
+      <div class="fullscreen-dialog" @click="showImageDialog = false">
+        <div class="image-container" @click.stop>
+          <q-btn
+            flat
+            round
+            dense
+            icon="close"
+            class="close-btn"
+            @click="showImageDialog = false"
+          />
           <img :src="selectedImage?.url" v-if="selectedImage" />
-        </q-card-section>
-      </q-card>
+        </div>
+      </div>
     </q-dialog>
   </div>
 </template>
@@ -411,38 +416,44 @@ const openFile = (file) => {
   }
 }
 
-.image-dialog {
+.fullscreen-dialog {
+  width: 100%;
+  height: 100vh;
   background: rgba(0, 0, 0, 0.9);
-  
-  .image-dialog-header {
-    position: absolute;
-    top: 0;
-    right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+
+  .close-btn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    color: white;
+    background: rgba(0, 0, 0, 0.5);
     z-index: 1;
-    padding: 8px;
-
-    .q-btn {
-      color: white;
-      background: rgba(0, 0, 0, 0.5);
-      
-      &:hover {
-        background: rgba(0, 0, 0, 0.7);
-      }
+    
+    &:hover {
+      background: rgba(0, 0, 0, 0.7);
     }
   }
+}
 
-  .image-dialog-content {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 0;
-
-    img {
-      max-width: 100%;
-      max-height: 100vh;
-      object-fit: contain;
-    }
+.image-container {
+  position: relative;
+  max-width: 95%;
+  max-height: 95vh;
+  
+  img {
+    max-width: 100%;
+    max-height: 95vh;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
   }
+}
+
+.image-dialog {
+  display: none;
 }
 </style> 

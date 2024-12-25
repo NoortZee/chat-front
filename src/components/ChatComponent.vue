@@ -325,18 +325,21 @@ const deleteMessage = (message, type) => {
   if (messageIndex === -1) return
 
   if (type === 'all') {
-    // В реальном приложении здесь будет запрос на сервер для удаления у всех
+    // Удаляем сообщение полностью
     selectedChat.value.messages.splice(messageIndex, 1)
+    
+    // Обновляем lastMessage если удалили последнее сообщение
+    if (messageIndex === selectedChat.value.messages.length) {
+      const lastMessage = selectedChat.value.messages[selectedChat.value.messages.length - 1]
+      selectedChat.value.lastMessage = lastMessage ? lastMessage.text : 'Нет сообщений'
+      selectedChat.value.lastMessageTime = lastMessage ? lastMessage.time : ''
+    }
   } else if (type === 'self') {
-    // В реальном приложении здесь будет запрос на сервер для скрытия у текущего пользователя
-    message.hiddenFor = message.hiddenFor || []
-    message.hiddenFor.push(currentUserId)
-  }
-
-  // Обновляем lastMessage если удалили последнее сообщение
-  if (messageIndex === selectedChat.value.messages.length - 1) {
-    const lastMessage = selectedChat.value.messages[selectedChat.value.messages.length - 1]
-    selectedChat.value.lastMessage = lastMessage ? lastMessage.text : 'Нет сообщений'
+    // Помечаем сообщение как удаленное для текущего пользователя
+    selectedChat.value.messages[messageIndex] = {
+      ...selectedChat.value.messages[messageIndex],
+      deletedFor: [...(selectedChat.value.messages[messageIndex].deletedFor || []), currentUserId]
+    }
   }
 }
 

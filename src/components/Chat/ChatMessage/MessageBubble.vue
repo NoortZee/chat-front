@@ -69,46 +69,23 @@
     <q-menu
       v-model="showMenu"
       context-menu
-      class="message-context-menu"
+      class="custom-context-menu"
     >
-      <q-list style="width: 200px">
-        <q-item clickable v-close-popup @click="handleEditClick" :disable="!isOwn">
-          <q-item-section>
-            <q-item-label>
-              <q-icon name="edit" size="xs" class="q-mr-sm" />
-              Редактировать
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <q-item clickable @click="showDeleteOptions = true">
-          <q-item-section>
-            <q-item-label class="text-negative">
-              <q-icon name="delete" size="xs" class="q-mr-sm" />
-              Удалить
-            </q-item-label>
-          </q-item-section>
-          <q-item-section side>
-            <q-icon name="chevron_right" />
-          </q-item-section>
-        </q-item>
-
-        <!-- Подменю для опций удаления -->
-        <q-menu
-          anchor="top end"
-          self="top start"
-          v-model="showDeleteOptions"
+      <div class="menu-list">
+        <div 
+          class="menu-item" 
+          :class="{ disabled: !props.isOwn }"
+          @click="props.isOwn && handleEditClick()"
         >
-          <q-list style="min-width: 150px">
-            <q-item clickable v-close-popup @click="$emit('delete-message', 'self')">
-              <q-item-section>Удалить у себя</q-item-section>
-            </q-item>
-            <q-item clickable v-close-popup @click="$emit('delete-message', 'all')">
-              <q-item-section>Удалить для всех</q-item-section>
-            </q-item>
-          </q-list>
-        </q-menu>
-      </q-list>
+          <q-icon name="edit" size="20px" />
+          <span>Редактировать</span>
+        </div>
+
+        <div class="menu-item delete" @click="handleDeleteClick">
+          <q-icon name="delete" size="20px" />
+          <span>Удалить</span>
+        </div>
+      </div>
     </q-menu>
 
     <!-- Модальное окно для просмотра изображений -->
@@ -134,49 +111,58 @@
     </q-dialog>
 
     <!-- Диалог редактирования сообщения -->
-    <q-dialog v-model="showEditDialog">
-      <q-card style="min-width: 350px">
-        <q-card-section class="row items-center q-pb-none">
+    <q-dialog v-model="showEditDialog" seamless>
+      <q-card class="custom-dialog edit-dialog">
+        <q-card-section class="dialog-header">
           <div class="text-h6">Редактирование сообщения</div>
-          <q-space />
-          <q-btn icon="close" flat round dense v-close-popup />
+          <q-btn icon="close" flat round dense class="close-dialog-btn" v-close-popup />
         </q-card-section>
 
         <q-card-section class="q-pt-md">
           <q-input
             v-model="editedText"
             type="textarea"
-            label="Сообщение"
+            placeholder="Введите сообщение"
+            class="custom-input"
+            dark
             autogrow
             :rules="[val => !!val.trim() || 'Сообщение не может быть пустым']"
-          />
+          >
+            <template v-slot:before>
+              <q-icon name="edit" size="24px" class="q-mr-sm" />
+            </template>
+          </q-input>
 
-          <div class="files-section q-mt-md" v-if="editedFiles.length">
-            <div class="text-subtitle2 q-mb-sm">Прикрепленные файлы:</div>
-            <q-list separator>
-              <q-item v-for="(file, index) in editedFiles" :key="index">
-                <q-item-section>
-                  <q-item-label>{{ file.name }}</q-item-label>
-                  <q-item-label caption>{{ formatFileSize(file.size) }}</q-item-label>
-                </q-item-section>
-                <q-item-section side>
-                  <q-btn
-                    flat
-                    round
-                    dense
-                    color="negative"
-                    icon="close"
-                    @click="removeFile(index)"
-                  />
-                </q-item-section>
-              </q-item>
-            </q-list>
+          <div class="files-section q-mt-lg" v-if="editedFiles.length">
+            <div class="section-title q-mb-sm">
+              <q-icon name="attachment" size="24px" class="q-mr-sm" />
+              Прикрепленные файлы
+            </div>
+            <div class="files-list">
+              <div v-for="(file, index) in editedFiles" :key="index" class="file-item">
+                <div class="file-info">
+                  <q-icon :name="getFileIcon(file.type)" size="24px" class="q-mr-sm" />
+                  <div class="file-details">
+                    <div class="file-name">{{ file.name }}</div>
+                    <div class="file-size">{{ formatFileSize(file.size) }}</div>
+                  </div>
+                </div>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="close"
+                  class="remove-file-btn"
+                  @click="removeFile(index)"
+                />
+              </div>
+            </div>
           </div>
 
-          <div class="row justify-between items-center q-mt-md">
+          <div class="attach-file-section q-mt-md">
             <q-btn
               flat
-              color="primary"
+              class="attach-btn"
               icon="attach_file"
               label="Прикрепить файл"
               @click="triggerFileInput"
@@ -191,13 +177,53 @@
           </div>
         </q-card-section>
 
-        <q-card-actions align="right">
-          <q-btn flat label="Отмена" color="primary" v-close-popup />
+        <q-card-actions align="right" class="q-px-md q-pb-md">
+          <q-btn flat label="Отмена" class="custom-btn cancel-btn" v-close-popup />
           <q-btn
+            flat
             label="Сохранить"
-            color="primary"
+            class="custom-btn save-btn"
             :disable="!editedText.trim()"
             @click="saveEdit"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
+
+    <!-- Диалог подтверждения удаления -->
+    <q-dialog v-model="showDeleteDialog" seamless>
+      <q-card class="custom-dialog delete-dialog">
+        <q-card-section class="text-center q-pb-none">
+          <div class="text-h6 q-mb-md">Удалить сообщение?</div>
+          <q-icon name="delete" size="48px" class="delete-icon q-mb-md" />
+        </q-card-section>
+
+        <q-card-section class="q-pt-none">
+          <div class="custom-radio-group">
+            <div v-if="props.isOwn" class="custom-radio" :class="{ active: deleteType === 'all' }" @click="deleteType = 'all'">
+              <div class="radio-content">
+                <q-icon name="delete_forever" size="24px" />
+                <div class="radio-label">Удалить для всех</div>
+              </div>
+            </div>
+            <div class="custom-radio" :class="{ active: deleteType === 'self' }" @click="deleteType = 'self'">
+              <div class="radio-content">
+                <q-icon name="delete_outline" size="24px" />
+                <div class="radio-label">Удалить у себя</div>
+              </div>
+            </div>
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right" class="q-px-md q-pb-md">
+          <q-btn flat label="Отмена" class="custom-btn cancel-btn" v-close-popup />
+          <q-btn 
+            flat 
+            label="Удалить" 
+            class="custom-btn delete-btn" 
+            :class="{ disabled: !deleteType }"
+            :disable="!deleteType"
+            @click="confirmDelete(deleteType)"
           />
         </q-card-actions>
       </q-card>
@@ -244,13 +270,17 @@ const props = defineProps({
   isEdited: {
     type: Boolean,
     default: false
+  },
+  deletedFor: {
+    type: Array,
+    default: () => []
   }
 })
 
 const emit = defineEmits(['edit-message', 'delete-message'])
 
 const showMenu = ref(false)
-const showDeleteOptions = ref(false)
+const showDeleteDialog = ref(false)
 const showEditDialog = ref(false)
 const editedText = ref('')
 const editedFiles = ref([])
@@ -262,10 +292,10 @@ const MIN_ZOOM = 0.1
 const MAX_ZOOM = 5
 const ZOOM_STEP = 0.1
 const imageRef = ref(null)
+const deleteType = ref(null)
 
 const showContextMenu = () => {
   showMenu.value = true
-  showDeleteOptions.value = false
 }
 
 const downloadFile = (file) => {
@@ -459,6 +489,19 @@ const handleEditClick = () => {
   showMenu.value = false // Закрываем контекстное меню
   startEdit()
 }
+
+const handleDeleteClick = () => {
+  showMenu.value = false
+  deleteType.value = props.isOwn ? 'all' : 'self'
+  showDeleteDialog.value = true
+}
+
+const confirmDelete = (type) => {
+  if (!type) return
+  emit('delete-message', type)
+  showDeleteDialog.value = false
+  deleteType.value = null
+}
 </script>
 
 <style lang="scss" scoped>
@@ -634,15 +677,54 @@ const handleEditClick = () => {
   }
 }
 
-.message-context-menu {
-  :deep(.q-item) {
-    min-height: 40px;
-    padding: 8px 16px;
+.custom-context-menu {
+  background: #2c2c2c;
+  border-radius: 12px;
+  padding: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 200px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.9);
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
   }
 
-  :deep(.q-item__label) {
-    line-height: 20px;
-    white-space: nowrap;
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+
+    &:hover {
+      background: transparent;
+    }
+  }
+
+  &.delete {
+    color: #ff4d4d;
+
+    &:hover {
+      background: rgba(255, 77, 77, 0.1);
+    }
+  }
+
+  span {
+    font-weight: 500;
   }
 }
 
@@ -694,5 +776,204 @@ const handleEditClick = () => {
 
 .image-dialog {
   display: none;
+}
+
+.custom-dialog {
+  border-radius: 16px;
+  background: #2c2c2c;
+  color: white;
+  min-width: 320px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+
+  .text-h6 {
+    font-weight: 500;
+    color: white;
+  }
+
+  .delete-icon {
+    color: #ff4d4d;
+    opacity: 0.9;
+  }
+}
+
+.custom-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.custom-radio {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  &.active {
+    background: var(--q-primary);
+    
+    .radio-content {
+      color: white;
+    }
+  }
+
+  .radio-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.9);
+
+    .radio-label {
+      font-size: 1rem;
+      font-weight: 500;
+    }
+  }
+}
+
+.custom-btn {
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+
+  &.cancel-btn {
+    color: rgba(255, 255, 255, 0.7);
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+
+  &.delete-btn {
+    color: #ff4d4d;
+    
+    &:hover {
+      background: rgba(255, 77, 77, 0.1);
+    }
+
+    &.disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.edit-dialog {
+  max-width: 500px;
+  width: 90vw;
+
+  .dialog-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .close-dialog-btn {
+    color: rgba(255, 255, 255, 0.7);
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+  }
+}
+
+.custom-input {
+  :deep(.q-field__control) {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    min-height: 100px;
+  }
+
+  :deep(.q-field__native) {
+    color: white;
+    padding: 12px;
+  }
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.9);
+  font-weight: 500;
+  font-size: 1rem;
+}
+
+.files-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .file-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.9);
+  }
+
+  .file-details {
+    .file-name {
+      font-weight: 500;
+      margin-bottom: 2px;
+    }
+
+    .file-size {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.6);
+    }
+  }
+
+  .remove-file-btn {
+    color: rgba(255, 255, 255, 0.6);
+    
+    &:hover {
+      color: #ff4d4d;
+      background: rgba(255, 77, 77, 0.1);
+    }
+  }
+}
+
+.attach-btn {
+  color: var(--q-primary);
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 8px 16px;
+  
+  &:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+}
+
+.save-btn {
+  color: var(--q-primary);
+  
+  &:hover {
+    background: rgba(var(--q-primary-rgb), 0.1);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 </style> 

@@ -21,13 +21,24 @@
             <q-btn flat round icon="add" @click="showNewChatDialog = true" />
           </div>
 
-          <ChatList
-            :chats="filteredChats"
-            :selected-chat-id="selectedChatId"
-            @select-chat="selectChat"
-            @archive-chat="archiveChat"
-            @delete-chat="deleteChat"
-          />
+          <div class="chat-list-container">
+            <ArchivedChats
+              v-if="hasArchivedChats"
+              :archived-chats="filteredArchivedChats"
+              :selected-chat-id="selectedChatId"
+              @select-chat="selectChat"
+              @unarchive-chat="unarchiveChat"
+              @unarchive-all="unarchiveAllChats"
+              @delete-chat="deleteChat"
+            />
+            <ChatList
+              :chats="filteredChats"
+              :selected-chat-id="selectedChatId"
+              @select-chat="selectChat"
+              @archive-chat="archiveChat"
+              @delete-chat="deleteChat"
+            />
+          </div>
         </div>
       </template>
 
@@ -130,6 +141,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import ChatList from './Chat/ChatList/ChatList.vue'
+import ArchivedChats from './Chat/ChatList/ArchivedChats.vue'
 import MessageBubble from './Chat/ChatMessage/MessageBubble.vue'
 import ChatInputBox from './Chat/ChatInput/ChatInputBox.vue'
 import BaseDialog from './UI/Dialogs/BaseDialog.vue'
@@ -178,16 +190,31 @@ const chats = ref([
 const filteredChats = computed(() => {
   const query = searchQuery.value.toLowerCase()
   return chats.value
-    .filter(chat => !chat.archived) // Фильтруем архивированные
+    .filter(chat => !chat.archived)
     .filter(chat =>
       chat.name.toLowerCase().includes(query) ||
-      chat.lastMessage.toLowerCase().includes(query)
+      chat.lastMessage?.toLowerCase().includes(query)
+    )
+})
+
+const filteredArchivedChats = computed(() => {
+  const query = searchQuery.value.toLowerCase()
+  return chats.value
+    .filter(chat => chat.archived)
+    .filter(chat =>
+      chat.name.toLowerCase().includes(query) ||
+      chat.lastMessage?.toLowerCase().includes(query)
     )
 })
 
 const selectedChat = computed(() =>
   chats.value.find(chat => chat.id === selectedChatId.value)
 )
+
+// Добавляем вычисляемое свойство для проверки наличия архивированных чатов
+const hasArchivedChats = computed(() => {
+  return chats.value.some(chat => chat.archived)
+})
 
 // Методы
 const selectChat = (chatId) => {
@@ -404,6 +431,24 @@ const handleUpload = ({ files, description }) => {
   currentMessage.value = ''
   showUploadDialog.value = false
 }
+
+// Добавляем метод разархивации
+const unarchiveChat = (chatId) => {
+  const index = chats.value.findIndex(chat => chat.id === chatId)
+  if (index !== -1) {
+    const chat = chats.value[index]
+    chat.archived = false
+  }
+}
+
+// Добавляем метод для разархивации всех чатов
+const unarchiveAllChats = () => {
+  chats.value.forEach(chat => {
+    if (chat.archived) {
+      chat.archived = false
+    }
+  })
+}
 </script>
 
 <style lang="scss" scoped>
@@ -438,6 +483,42 @@ const handleUpload = ({ files, description }) => {
         &::placeholder {
           color: rgba(214, 210, 205, 0.7);
         }
+      }
+    }
+  }
+
+  .chat-list-container {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    background: var(--darkreader-bg--q-dark);
+
+    :deep(.q-list) {
+      padding: 0;
+    }
+  }
+
+  .chat-tabs {
+    :deep(.q-tabs) {
+      background: transparent;
+      
+      .q-tab {
+        min-height: 40px;
+        padding: 0 16px;
+        
+        &--active {
+          color: var(--q-primary);
+          font-weight: 500;
+        }
+        
+        &__label {
+          font-size: 0.9rem;
+        }
+      }
+      
+      .q-tab__indicator {
+        height: 3px;
       }
     }
   }

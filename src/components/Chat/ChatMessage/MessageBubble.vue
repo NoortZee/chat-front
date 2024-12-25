@@ -72,14 +72,15 @@
       class="custom-context-menu"
     >
       <div class="menu-list">
-        <div 
-          class="menu-item" 
-          :class="{ disabled: !props.isOwn }"
-          @click="props.isOwn && handleEditClick()"
-        >
-          <q-icon name="edit" size="20px" />
-          <span>Редактировать</span>
-        </div>
+        <template v-if="isOwn">
+          <div 
+            class="menu-item"
+            @click="handleEditClick()"
+          >
+            <q-icon name="edit" size="20px" />
+            <span>Редактировать</span>
+          </div>
+        </template>
 
         <div class="menu-item delete" @click="handleDeleteClick">
           <q-icon name="delete" size="20px" />
@@ -200,13 +201,21 @@
 
         <q-card-section class="q-pt-none">
           <div class="custom-radio-group">
-            <div v-if="props.isOwn" class="custom-radio" :class="{ active: deleteType === 'all' }" @click="deleteType = 'all'">
+            <div 
+              class="custom-radio" 
+              :class="{ active: deleteType === 'all' }" 
+              @click="deleteType = 'all'"
+            >
               <div class="radio-content">
                 <q-icon name="delete_forever" size="24px" />
                 <div class="radio-label">Удалить для всех</div>
               </div>
             </div>
-            <div class="custom-radio" :class="{ active: deleteType === 'self' }" @click="deleteType = 'self'">
+            <div 
+              class="custom-radio" 
+              :class="{ active: deleteType === 'self' }" 
+              @click="deleteType = 'self'"
+            >
               <div class="radio-content">
                 <q-icon name="delete_outline" size="24px" />
                 <div class="radio-label">Удалить у себя</div>
@@ -221,8 +230,6 @@
             flat 
             label="Удалить" 
             class="custom-btn delete-btn" 
-            :class="{ disabled: !deleteType }"
-            :disable="!deleteType"
             @click="confirmDelete(deleteType)"
           />
         </q-card-actions>
@@ -492,7 +499,7 @@ const handleEditClick = () => {
 
 const handleDeleteClick = () => {
   showMenu.value = false
-  deleteType.value = props.isOwn ? 'all' : 'self'
+  deleteType.value = 'all' // По умолчанию выбираем "Удалить для всех"
   showDeleteDialog.value = true
 }
 

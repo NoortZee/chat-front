@@ -20,7 +20,7 @@
         <q-item-section>
           <q-item-label class="text-weight-bold">{{ chat.name }}</q-item-label>
           <q-item-label caption lines="1">
-            {{ chat.lastMessage }} asdasdasdasdasdasdasd
+            {{ chat.lastMessage }} 
           </q-item-label>
         </q-item-section>
 

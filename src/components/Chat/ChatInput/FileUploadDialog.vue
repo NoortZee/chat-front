@@ -49,6 +49,16 @@
               <q-item-section side>
                 <q-btn flat round dense icon="close" @click="removeFile(index)" />
               </q-item-section>
+
+              <q-tooltip
+                v-if="file.type.startsWith('image/')"
+                anchor="center right"
+                self="center left"
+                :offset="[10, 0]"
+                class="image-preview-tooltip"
+              >
+                <img :src="getPreviewUrl(file)" class="preview-image" />
+              </q-tooltip>
             </q-item>
           </q-list>
         </div>
@@ -182,6 +192,13 @@ const handleFileSelect = (event) => {
   files.value = [...files.value, ...selectedFiles]
   event.target.value = '' // Сброс input для возможности повторного выбора тех же файлов
 }
+
+const getPreviewUrl = (file) => {
+  if (file instanceof File) {
+    return URL.createObjectURL(file)
+  }
+  return file.url || ''
+}
 </script>
 
 <style lang="scss" scoped>
@@ -210,5 +227,17 @@ const handleFileSelect = (event) => {
 
 .hidden {
   display: none;
+}
+
+.image-preview-tooltip {
+  background: transparent;
+  box-shadow: none;
+}
+
+.preview-image {
+  max-width: 200px;
+  max-height: 200px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
 }
 </style> 

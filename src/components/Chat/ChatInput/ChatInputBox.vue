@@ -16,6 +16,7 @@
           placeholder="Введите сообщение..."
           @keypress.enter.prevent="onSubmit"
           @input="autoResize"
+          @paste="handlePaste"
           ref="textareaRef"
         ></textarea>
         <q-btn
@@ -74,6 +75,26 @@ const autoResize = () => {
 const handleAttachmentClick = () => {
   emit('attachment-click', { files: [], description: message.value })
   message.value = ''
+}
+
+const handlePaste = async (event) => {
+  const items = event.clipboardData.items
+  const files = []
+
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) {
+        files.push(file)
+      }
+    }
+  }
+
+  if (files.length > 0) {
+    event.preventDefault()
+    emit('attachment-click', { files, description: message.value })
+    message.value = ''
+  }
 }
 </script>
 

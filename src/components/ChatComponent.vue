@@ -322,12 +322,17 @@ const deleteMessage = (message, type) => {
 }
 
 const handleDragOver = (event) => {
+  event.preventDefault()
+  event.stopPropagation()
   isDragOver.value = true
   event.dataTransfer.dropEffect = 'copy'
 }
 
 const handleDragLeave = (event) => {
-  // Проверяем, что мышь покинула именно контейнер сообщений, а не его дочерние элементы
+  event.preventDefault()
+  event.stopPropagation()
+  
+  // Проверяем, что мышь действительно покинула зону
   const rect = event.currentTarget.getBoundingClientRect()
   const x = event.clientX
   const y = event.clientY
@@ -338,7 +343,10 @@ const handleDragLeave = (event) => {
 }
 
 const handleDrop = (event) => {
+  event.preventDefault()
+  event.stopPropagation()
   isDragOver.value = false
+  
   const files = Array.from(event.dataTransfer.files)
   if (files.length > 0) {
     selectedFiles.value = files

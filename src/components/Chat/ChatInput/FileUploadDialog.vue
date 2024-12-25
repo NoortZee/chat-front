@@ -10,9 +10,9 @@
       <q-card-section class="q-pt-sm">
         <div 
           class="drop-zone q-mb-md"
-          @dragover.prevent="isDragOver = true"
-          @dragleave.prevent="isDragOver = false"
-          @drop.prevent="handleDrop"
+          @dragover.prevent.stop="handleDragOver"
+          @dragleave.prevent.stop="handleDragLeave"
+          @drop.prevent.stop="handleDrop"
           :class="{ 'drag-over': isDragOver }"
         >
           <div class="text-center">
@@ -153,10 +153,28 @@ const uploadFiles = async () => {
   }
 }
 
+const handleDragOver = (event) => {
+  isDragOver.value = true
+  event.dataTransfer.dropEffect = 'copy'
+}
+
+const handleDragLeave = (event) => {
+  // Проверяем, что мышь действительно покинула зону
+  const rect = event.currentTarget.getBoundingClientRect()
+  const x = event.clientX
+  const y = event.clientY
+  
+  if (x <= rect.left || x >= rect.right || y <= rect.top || y >= rect.bottom) {
+    isDragOver.value = false
+  }
+}
+
 const handleDrop = (event) => {
   isDragOver.value = false
   const droppedFiles = Array.from(event.dataTransfer.files)
-  files.value = [...files.value, ...droppedFiles]
+  if (droppedFiles.length > 0) {
+    files.value = [...files.value, ...droppedFiles]
+  }
 }
 
 const handleFileSelect = (event) => {

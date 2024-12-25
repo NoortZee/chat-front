@@ -66,6 +66,7 @@
               <MessageBubble
                 v-for="message in selectedChat.messages"
                 :key="message.id"
+                :id="message.id"
                 :is-own="message.userId === currentUserId"
                 :text="message.text"
                 :time="message.time"
@@ -73,7 +74,8 @@
                 :avatar="message.avatar"
                 :status="message.status"
                 :files="message.files"
-                @edit-message="editMessage(message)"
+                :is-edited="message.isEdited"
+                @edit-message="editMessage(message, $event)"
                 @delete-message="deleteMessage(message, $event)"
               />
             </div>
@@ -294,9 +296,26 @@ const archiveChat = (chatId) => {
   }
 }
 
-const editMessage = (message) => {
-  // В реальном приложении здесь будет открываться диалог редактирования
-  console.log('Редактирование сообщения:', message)
+const editMessage = (message, editData) => {
+  if (!selectedChat.value) return
+
+  const messageIndex = selectedChat.value.messages.findIndex(m => m.id === message.id)
+  if (messageIndex === -1) return
+
+  // Обновляем сообщение с новыми данными
+  selectedChat.value.messages[messageIndex] = {
+    ...selectedChat.value.messages[messageIndex],
+    text: editData.text,
+    files: editData.files,
+    isEdited: true,
+    editedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
+
+  // Обновляем lastMessage если это было последнее сообщение
+  if (messageIndex === selectedChat.value.messages.length - 1) {
+    selectedChat.value.lastMessage = editData.text
+    selectedChat.value.lastMessageTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  }
 }
 
 const deleteMessage = (message, type) => {

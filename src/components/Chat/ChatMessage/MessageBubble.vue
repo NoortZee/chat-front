@@ -49,7 +49,10 @@
           </div>
           <div v-if="text" class="message-text">{{ text }}</div>
           <div class="message-meta">
-            <span class="message-time text-caption text-grey-7">{{ time }}</span>
+            <span class="message-time text-caption text-grey-7">
+              {{ time }}
+              <span v-if="isEdited" class="edited-mark">(изменено)</span>
+            </span>
             <q-icon
               v-if="isOwn"
               :name="statusIcon"
@@ -69,7 +72,7 @@
       class="message-context-menu"
     >
       <q-list style="width: 200px">
-        <q-item clickable v-close-popup @click="$emit('edit-message')" :disable="!isOwn">
+        <q-item clickable v-close-popup @click="handleEditClick" :disable="!isOwn">
           <q-item-section>
             <q-item-label>
               <q-icon name="edit" size="xs" class="q-mr-sm" />
@@ -129,13 +132,87 @@
         </div>
       </div>
     </q-dialog>
+
+    <!-- Диалог редактирования сообщения -->
+    <q-dialog v-model="showEditDialog">
+      <q-card style="min-width: 350px">
+        <q-card-section class="row items-center q-pb-none">
+          <div class="text-h6">Редактирование сообщения</div>
+          <q-space />
+          <q-btn icon="close" flat round dense v-close-popup />
+        </q-card-section>
+
+        <q-card-section class="q-pt-md">
+          <q-input
+            v-model="editedText"
+            type="textarea"
+            label="Сообщение"
+            autogrow
+            :rules="[val => !!val.trim() || 'Сообщение не может быть пустым']"
+          />
+
+          <div class="files-section q-mt-md" v-if="editedFiles.length">
+            <div class="text-subtitle2 q-mb-sm">Прикрепленные файлы:</div>
+            <q-list separator>
+              <q-item v-for="(file, index) in editedFiles" :key="index">
+                <q-item-section>
+                  <q-item-label>{{ file.name }}</q-item-label>
+                  <q-item-label caption>{{ formatFileSize(file.size) }}</q-item-label>
+                </q-item-section>
+                <q-item-section side>
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    color="negative"
+                    icon="close"
+                    @click="removeFile(index)"
+                  />
+                </q-item-section>
+              </q-item>
+            </q-list>
+          </div>
+
+          <div class="row justify-between items-center q-mt-md">
+            <q-btn
+              flat
+              color="primary"
+              icon="attach_file"
+              label="Прикрепить файл"
+              @click="triggerFileInput"
+            />
+            <input
+              type="file"
+              ref="fileInput"
+              multiple
+              class="hidden"
+              @change="onFileSelect"
+            />
+          </div>
+        </q-card-section>
+
+        <q-card-actions align="right">
+          <q-btn flat label="Отмена" color="primary" v-close-popup />
+          <q-btn
+            label="Сохранить"
+            color="primary"
+            :disable="!editedText.trim()"
+            @click="saveEdit"
+          />
+        </q-card-actions>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, nextTick } from 'vue'
 
 const props = defineProps({
+  id: {
+    type: [String, Number],
+    required: true
+  },
   isOwn: {
     type: Boolean,
     default: false
@@ -163,6 +240,10 @@ const props = defineProps({
   files: {
     type: Array,
     default: () => []
+  },
+  isEdited: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -170,6 +251,10 @@ const emit = defineEmits(['edit-message', 'delete-message'])
 
 const showMenu = ref(false)
 const showDeleteOptions = ref(false)
+const showEditDialog = ref(false)
+const editedText = ref('')
+const editedFiles = ref([])
+const fileInput = ref(null)
 const showImageDialog = ref(false)
 const selectedImage = ref(null)
 const zoomLevel = ref(1)
@@ -310,6 +395,70 @@ watch(showImageDialog, (newValue) => {
     }
   }
 })
+
+const triggerFileInput = () => {
+  nextTick(() => {
+    if (fileInput.value) {
+      fileInput.value.click()
+    }
+  })
+}
+
+const startEdit = () => {
+  showEditDialog.value = true
+  nextTick(() => {
+    editedText.value = props.text || ''
+    editedFiles.value = Array.isArray(props.files) ? [...props.files] : []
+  })
+}
+
+const removeFile = (index) => {
+  if (Array.isArray(editedFiles.value)) {
+    editedFiles.value.splice(index, 1)
+  }
+}
+
+const onFileSelect = (event) => {
+  if (event.target?.files) {
+    const newFiles = Array.from(event.target.files).map(file => ({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      url: URL.createObjectURL(file)
+    }))
+    editedFiles.value = Array.isArray(editedFiles.value) ? [...editedFiles.value, ...newFiles] : newFiles
+    event.target.value = ''
+  }
+}
+
+const saveEdit = () => {
+  if (editedText.value?.trim()) {
+    emit('edit-message', {
+      id: props.id,
+      text: editedText.value.trim(),
+      files: Array.isArray(editedFiles.value) ? editedFiles.value : [],
+      isEdited: true
+    })
+    showEditDialog.value = false
+    // Очищаем состояние после закрытия
+    editedText.value = ''
+    editedFiles.value = []
+  }
+}
+
+// Добавляем очистку при закрытии диалога
+watch(showEditDialog, (newValue) => {
+  if (!newValue) {
+    editedText.value = ''
+    editedFiles.value = []
+  }
+})
+
+// Изменяем обработчик клика по пункту меню редактирования
+const handleEditClick = () => {
+  showMenu.value = false // Закрываем контекстное меню
+  startEdit()
+}
 </script>
 
 <style lang="scss" scoped>
@@ -411,6 +560,11 @@ watch(showImageDialog, (newValue) => {
   opacity: 0.7;
   white-space: nowrap;
   line-height: 1;
+
+  .edited-mark {
+    margin-left: 4px;
+    font-style: italic;
+  }
 }
 
 .files-content {

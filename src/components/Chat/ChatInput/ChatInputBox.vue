@@ -6,8 +6,16 @@
         flat
         icon="attach_file"
         class="attach-btn q-mr-sm"
-        @click="$emit('attachment-click')"
-      />
+        @click="handleAttachmentClick"
+      >
+        <input
+          type="file"
+          ref="fileInput"
+          multiple
+          class="hidden-input"
+          @change="handleFileSelect"
+        />
+      </q-btn>
       <div class="custom-input-wrapper col">
         <textarea
           v-model="message"
@@ -37,6 +45,7 @@ import { ref } from 'vue'
 const emit = defineEmits(['send', 'attachment-click'])
 const message = ref('')
 const textareaRef = ref(null)
+const fileInput = ref(null)
 
 const onSubmit = () => {
   if (message.value.trim()) {
@@ -55,6 +64,20 @@ const autoResize = () => {
     textarea.style.height = textarea.scrollHeight + 'px'
   }
 }
+
+const handleAttachmentClick = () => {
+  fileInput.value.click()
+}
+
+const handleFileSelect = (event) => {
+  const files = Array.from(event.target.files)
+  if (files.length > 0) {
+    emit('attachment-click', { files, description: message.value })
+    message.value = ''
+  }
+  // Сброс input для возможности повторного выбора тех же файлов
+  event.target.value = ''
+}
 </script>
 
 <style lang="scss" scoped>
@@ -62,6 +85,10 @@ const autoResize = () => {
   background: var(--darkreader-bg--q-dark);
   border-top: 1px solid var(--divider-color);
   padding: 8px 16px;
+}
+
+.hidden-input {
+  display: none;
 }
 
 .custom-input-wrapper {

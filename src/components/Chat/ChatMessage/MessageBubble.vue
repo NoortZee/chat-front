@@ -13,8 +13,26 @@
     >
       <div class="message-wrapper">
         <div v-if="!isOwn" class="text-caption text-weight-bold q-mb-xs">{{ username }}</div>
-        <div class="message-content">
-          <div class="message-text">{{ text }}</div>
+        <div class="message-content" :class="{ 'with-files': files?.length }">
+          <div v-if="files?.length" class="files-content q-mb-sm">
+            <div 
+              v-for="(file, index) in files" 
+              :key="index"
+              class="file-item q-mb-sm"
+            >
+              <div v-if="file.type.startsWith('image/')" class="image-preview">
+                <img :src="file.url" @click="openFile(file)" />
+              </div>
+              <div v-else class="file-info" @click="openFile(file)">
+                <q-icon :name="getFileIcon(file.type)" size="24px" class="q-mr-sm" />
+                <div class="file-details">
+                  <div class="file-name text-weight-medium">{{ file.name }}</div>
+                  <div class="file-size text-caption">{{ formatFileSize(file.size) }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div v-if="text" class="message-text">{{ text }}</div>
           <div class="message-meta">
             <span class="message-time text-caption text-grey-7">{{ time }}</span>
             <q-icon
@@ -102,7 +120,11 @@ const props = defineProps({
   },
   status: {
     type: String,
-    default: 'sent' // sent, delivered, read
+    default: 'sent'
+  },
+  files: {
+    type: Array,
+    default: () => []
   }
 })
 
@@ -137,6 +159,30 @@ const statusColor = computed(() => {
       return 'grey'
   }
 })
+
+const getFileIcon = (type) => {
+  if (type.startsWith('image/')) return 'image'
+  if (type.startsWith('video/')) return 'movie'
+  if (type.startsWith('audio/')) return 'audiotrack'
+  if (type.includes('pdf')) return 'picture_as_pdf'
+  if (type.includes('word')) return 'description'
+  if (type.includes('excel') || type.includes('spreadsheet')) return 'table_view'
+  return 'insert_drive_file'
+}
+
+const formatFileSize = (bytes) => {
+  if (bytes === 0) return '0 Bytes'
+  const k = 1024
+  const sizes = ['Bytes', 'KB', 'MB', 'GB']
+  const i = Math.floor(Math.log(bytes) / Math.log(k))
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+}
+
+const openFile = (file) => {
+  if (file.url) {
+    window.open(file.url, '_blank')
+  }
+}
 </script>
 
 <style lang="scss" scoped>
@@ -192,9 +238,19 @@ const statusColor = computed(() => {
 .message-content {
   display: flex;
   gap: 8px;
-  align-items: flex-end;
   min-width: 0;
   position: relative;
+  flex-direction: row;
+  justify-content: space-between;
+
+  &.with-files {
+    flex-direction: column;
+    justify-content: flex-start;
+
+    .message-meta {
+      align-self: flex-end;
+    }
+  }
 }
 
 .message-text {
@@ -206,6 +262,7 @@ const statusColor = computed(() => {
   word-break: break-word;
   padding-right: 4px;
   margin-bottom: 0;
+  flex: 1;
 }
 
 .message-meta {
@@ -214,6 +271,7 @@ const statusColor = computed(() => {
   flex-shrink: 0;
   margin-bottom: 1px;
   line-height: 1;
+  margin-left: auto;
 
   .q-icon {
     height: 12px;
@@ -226,5 +284,69 @@ const statusColor = computed(() => {
   opacity: 0.7;
   white-space: nowrap;
   line-height: 1;
+}
+
+.files-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  
+  .file-item {
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  .image-preview {
+    max-width: 300px;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+
+    img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+  }
+
+  .file-info {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.15);
+    }
+  }
+
+  .file-details {
+    min-width: 0;
+    flex: 1;
+
+    .file-name {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .file-size {
+      color: var(--secondary-text);
+    }
+  }
+}
+
+.message-bubble--own {
+  .file-info {
+    background: rgba(255, 255, 255, 0.1);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.15);
+    }
+  }
 }
 </style> 

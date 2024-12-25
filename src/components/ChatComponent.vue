@@ -55,7 +55,7 @@
             </q-btn>
           </div>
 
-          <div class="chat-messages q-pa-sm" ref="messagesContainer">
+          <div class="chat-messages q-pa-sm" ref="messagesContainer" @dragover.prevent="handleDragOver" @dragleave.prevent="handleDragLeave" @drop.prevent="handleDrop" :class="{ 'drag-over': isDragOver }">
             <MessageBubble
               v-for="message in selectedChat.messages"
               :key="message.id"
@@ -65,6 +65,7 @@
               :username="message.username"
               :avatar="message.avatar"
               :status="message.status"
+              :files="message.files"
               @edit-message="editMessage(message)"
               @delete-message="deleteMessage(message, $event)"
             />
@@ -105,6 +106,13 @@
         </div>
       </q-form>
     </BaseDialog>
+
+    <FileUploadDialog
+      v-model="showUploadDialog"
+      :initial-files="selectedFiles"
+      :initial-description="currentMessage"
+      @upload="handleUpload"
+    />
   </div>
 </template>
 
@@ -114,6 +122,7 @@ import ChatList from './Chat/ChatList/ChatList.vue'
 import MessageBubble from './Chat/ChatMessage/MessageBubble.vue'
 import ChatInputBox from './Chat/ChatInput/ChatInputBox.vue'
 import BaseDialog from './UI/Dialogs/BaseDialog.vue'
+import FileUploadDialog from './Chat/ChatInput/FileUploadDialog.vue'
 
 // Состояние компонента
 const splitterModel = ref(20)
@@ -124,6 +133,12 @@ const newChatName = ref('')
 const creating = ref(false)
 const messagesContainer = ref(null)
 const currentUserId = '1' // В реальном приложении получаем из хранилища
+
+// Добавляем состояние для drag and drop
+const isDragOver = ref(false)
+const showUploadDialog = ref(false)
+const selectedFiles = ref([])
+const currentMessage = ref('')
 
 // Моковые данные (в реальном приложении получаем с бэкенда)
 const chats = ref([
@@ -187,9 +202,31 @@ const sendMessage = (text) => {
   scrollToBottom()
 }
 
-const handleAttachment = () => {
-  // Реализация загрузки файлов
-  console.log('Attachment clicked')
+const handleAttachment = ({ files, description }) => {
+  if (!selectedChat.value || !files.length) return
+
+  // Создаем одно сообщение для всех файлов
+  const message = {
+    id: Date.now() + Math.random(),
+    userId: currentUserId,
+    username: 'Вы',
+    text: description || `Отправлено файлов: ${files.length}`,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    status: 'sent',
+    files: files.map(file => ({
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      // В реальном приложении здесь будет URL файла с сервера
+      url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
+    }))
+  }
+
+  selectedChat.value.messages.push(message)
+  selectedChat.value.lastMessage = message.text
+  selectedChat.value.lastMessageTime = message.time
+
+  scrollToBottom()
 }
 
 const createNewChat = async () => {
@@ -293,6 +330,37 @@ const deleteMessage = (message, type) => {
     selectedChat.value.lastMessage = lastMessage ? lastMessage.text : 'Нет сообщений'
   }
 }
+
+const handleDragOver = (event) => {
+  isDragOver.value = true
+  event.dataTransfer.dropEffect = 'copy'
+}
+
+const handleDragLeave = (event) => {
+  // Проверяем, что мышь покинула именно контейнер сообщений, а не его дочерние элементы
+  const rect = event.currentTarget.getBoundingClientRect()
+  const x = event.clientX
+  const y = event.clientY
+  
+  if (x <= rect.left || x >= rect.right || y <= rect.top || y >= rect.bottom) {
+    isDragOver.value = false
+  }
+}
+
+const handleDrop = (event) => {
+  isDragOver.value = false
+  const files = Array.from(event.dataTransfer.files)
+  if (files.length > 0) {
+    selectedFiles.value = files
+    showUploadDialog.value = true
+  }
+}
+
+const handleUpload = ({ files, description }) => {
+  handleAttachment({ files, description })
+  selectedFiles.value = []
+  currentMessage.value = ''
+}
 </script>
 
 <style lang="scss" scoped>
@@ -336,6 +404,23 @@ const deleteMessage = (message, type) => {
     overflow-y: auto;
     background: var(--darkreader-bg--q-dark);
     padding: 16px;
+    position: relative;
+    
+    &.drag-over {
+      &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(var(--q-primary), 0.1);
+        border: 2px dashed var(--q-primary);
+        border-radius: 8px;
+        pointer-events: none;
+        z-index: 1;
+      }
+    }
     
     &::-webkit-scrollbar {
       width: 6px;

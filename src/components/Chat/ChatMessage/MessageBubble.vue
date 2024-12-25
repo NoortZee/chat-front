@@ -22,13 +22,28 @@
             >
               <div v-if="file.type.startsWith('image/')" class="image-preview">
                 <img :src="file.url" @click="openFile(file)" />
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="download"
+                  class="download-btn"
+                  @click.stop="downloadFile(file)"
+                />
               </div>
-              <div v-else class="file-info" @click="openFile(file)">
+              <div v-else class="file-info">
                 <q-icon :name="getFileIcon(file.type)" size="24px" class="q-mr-sm" />
-                <div class="file-details">
+                <div class="file-details" @click="openFile(file)">
                   <div class="file-name text-weight-medium">{{ file.name }}</div>
                   <div class="file-size text-caption">{{ formatFileSize(file.size) }}</div>
                 </div>
+                <q-btn
+                  flat
+                  round
+                  dense
+                  icon="download"
+                  @click.stop="downloadFile(file)"
+                />
               </div>
             </div>
           </div>
@@ -54,17 +69,6 @@
       class="message-context-menu"
     >
       <q-list style="width: 200px">
-        <q-item clickable v-close-popup @click="files?.length > 1 ? downloadAllFiles() : downloadFile(files[0])" :disable="!files?.length">
-          <q-item-section>
-            <q-item-label class="ellipsis">
-              <q-icon name="download" size="xs" class="q-mr-sm" />
-              {{ files?.length > 1 ? 'Скачать все файлы' : 'Скачать файл' }}
-            </q-item-label>
-          </q-item-section>
-        </q-item>
-
-        <q-separator />
-
         <q-item clickable v-close-popup @click="$emit('edit-message')" :disable="!isOwn">
           <q-item-section>
             <q-item-label>
@@ -103,6 +107,18 @@
         </q-menu>
       </q-list>
     </q-menu>
+
+    <!-- Модальное окно для просмотра изображений -->
+    <q-dialog v-model="showImageDialog" maximized>
+      <q-card class="image-dialog">
+        <q-card-section class="image-dialog-header">
+          <q-btn flat round dense icon="close" v-close-popup />
+        </q-card-section>
+        <q-card-section class="image-dialog-content">
+          <img :src="selectedImage?.url" v-if="selectedImage" />
+        </q-card-section>
+      </q-card>
+    </q-dialog>
   </div>
 </template>
 
@@ -144,6 +160,8 @@ const emit = defineEmits(['edit-message', 'delete-message'])
 
 const showMenu = ref(false)
 const showDeleteOptions = ref(false)
+const showImageDialog = ref(false)
+const selectedImage = ref(null)
 
 const showContextMenu = () => {
   showMenu.value = true
@@ -204,7 +222,10 @@ const formatFileSize = (bytes) => {
 }
 
 const openFile = (file) => {
-  if (file.url) {
+  if (file.type.startsWith('image/')) {
+    selectedImage.value = file
+    showImageDialog.value = true
+  } else if (file.url) {
     window.open(file.url, '_blank')
   }
 }
@@ -327,11 +348,24 @@ const openFile = (file) => {
     border-radius: 8px;
     overflow: hidden;
     cursor: pointer;
+    position: relative;
 
     img {
       width: 100%;
       height: auto;
       display: block;
+    }
+
+    .download-btn {
+      position: absolute;
+      right: 8px;
+      bottom: 8px;
+      background: rgba(0, 0, 0, 0.5);
+      color: white;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.7);
+      }
     }
   }
 
@@ -341,26 +375,16 @@ const openFile = (file) => {
     padding: 8px;
     background: rgba(0, 0, 0, 0.1);
     border-radius: 8px;
-    cursor: pointer;
     transition: background-color 0.2s ease;
 
-    &:hover {
-      background: rgba(0, 0, 0, 0.15);
-    }
-  }
+    .file-details {
+      min-width: 0;
+      flex: 1;
+      cursor: pointer;
 
-  .file-details {
-    min-width: 0;
-    flex: 1;
-
-    .file-name {
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    .file-size {
-      color: var(--secondary-text);
+      &:hover {
+        opacity: 0.8;
+      }
     }
   }
 }
@@ -384,6 +408,41 @@ const openFile = (file) => {
   :deep(.q-item__label) {
     line-height: 20px;
     white-space: nowrap;
+  }
+}
+
+.image-dialog {
+  background: rgba(0, 0, 0, 0.9);
+  
+  .image-dialog-header {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
+    padding: 8px;
+
+    .q-btn {
+      color: white;
+      background: rgba(0, 0, 0, 0.5);
+      
+      &:hover {
+        background: rgba(0, 0, 0, 0.7);
+      }
+    }
+  }
+
+  .image-dialog-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 0;
+
+    img {
+      max-width: 100%;
+      max-height: 100vh;
+      object-fit: contain;
+    }
   }
 }
 </style> 

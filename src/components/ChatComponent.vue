@@ -86,6 +86,9 @@
                 :status="message.status"
                 :files="message.files"
                 :is-edited="message.isEdited"
+                :type="message.type"
+                :audio-url="message.audioUrl"
+                :duration="message.duration"
                 @edit-message="editMessage(message, $event)"
                 @delete-message="deleteMessage(message, $event)"
               />
@@ -95,6 +98,7 @@
           <ChatInputBox
             @send="sendMessage"
             @attachment-click="handleAttachment"
+            @voice-message="handleVoiceMessage"
             v-model="currentMessage"
           />
         </div>
@@ -351,18 +355,20 @@ const deleteMessage = (message, type) => {
   const messageIndex = selectedChat.value.messages.findIndex(m => m.id === message.id)
   if (messageIndex === -1) return
 
+  // Очищаем URL для голосовых сообщений
+  if (message.type === 'voice' && message.audioUrl) {
+    URL.revokeObjectURL(message.audioUrl)
+  }
+
   if (type === 'all') {
-    // Удаляем сообщение полностью
     selectedChat.value.messages.splice(messageIndex, 1)
     
-    // Обновляем lastMessage если удалили последнее сообщение
     if (messageIndex === selectedChat.value.messages.length) {
       const lastMessage = selectedChat.value.messages[selectedChat.value.messages.length - 1]
       selectedChat.value.lastMessage = lastMessage ? lastMessage.text : 'Нет сообщений'
       selectedChat.value.lastMessageTime = lastMessage ? lastMessage.time : ''
     }
   } else if (type === 'self') {
-    // Помечаем сообщение как удаленное для текущего пользователя
     selectedChat.value.messages[messageIndex] = {
       ...selectedChat.value.messages[messageIndex],
       deletedFor: [...(selectedChat.value.messages[messageIndex].deletedFor || []), currentUserId]
@@ -449,6 +455,44 @@ const unarchiveAllChats = () => {
     }
   })
 }
+
+// Обновляем обработчик голосовых сообщений
+const handleVoiceMessage = (audioBlob) => {
+  if (!selectedChat.value) return
+
+  // Создаем временный URL для аудио
+  const audioUrl = URL.createObjectURL(audioBlob)
+  
+  // Создаем объект сообщения
+  const message = {
+    id: Date.now(),
+    userId: currentUserId,
+    username: 'Вы',
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    status: 'sent',
+    type: 'voice',
+    audioUrl,
+    duration: 0 // Будет обновлено после загрузки аудио
+  }
+
+  // Получаем длительность аудио
+  const audio = new Audio(audioUrl)
+  audio.addEventListener('loadedmetadata', () => {
+    message.duration = Math.round(audio.duration)
+    // Обновляем сообщение для триггера реактивности
+    const index = selectedChat.value.messages.findIndex(m => m.id === message.id)
+    if (index !== -1) {
+      selectedChat.value.messages[index] = { ...message }
+    }
+  })
+
+  // Добавляем сообщение в чат
+  selectedChat.value.messages.push(message)
+  selectedChat.value.lastMessage = '🎤 Голосовое сообщение'
+  selectedChat.value.lastMessageTime = message.time
+
+  scrollToBottom()
+}
 </script>
 
 <style lang="scss" scoped>
@@ -493,6 +537,7 @@ const unarchiveAllChats = () => {
     display: flex;
     flex-direction: column;
     background: var(--darkreader-bg--q-dark);
+    min-height: 0;
 
     :deep(.q-list) {
       padding: 0;
@@ -529,6 +574,8 @@ const unarchiveAllChats = () => {
     background: var(--darkreader-bg--q-dark);
     padding: 16px;
     position: relative;
+    height: 0;
+    min-height: 0;
 
     &::-webkit-scrollbar {
       width: 6px;
@@ -581,6 +628,7 @@ const unarchiveAllChats = () => {
     height: 100vh;
     display: flex;
     flex-direction: column;
+    min-height: 0;
   }
 
   :deep(.q-splitter__separator) {

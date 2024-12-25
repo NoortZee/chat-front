@@ -19,14 +19,22 @@
           @paste="handlePaste"
           ref="textareaRef"
         ></textarea>
-        <q-btn
-          round
-          flat
-          :icon="message.trim() ? 'send' : 'mic'"
-          :color="message.trim() ? 'primary' : 'grey'"
-          class="send-btn"
-          @click="onSubmit"
-        />
+        <template v-if="message.trim()">
+          <q-btn
+            round
+            flat
+            icon="send"
+            color="primary"
+            class="send-btn"
+            @click="onSubmit"
+          />
+        </template>
+        <template v-else>
+          <voice-message
+            class="voice-message-btn"
+            @voice-recorded="handleVoiceMessage"
+          />
+        </template>
       </div>
     </form>
   </div>
@@ -34,6 +42,7 @@
 
 <script setup>
 import { ref, watch } from 'vue'
+import VoiceMessage from 'components/VoiceMessage.vue'
 
 const props = defineProps({
   modelValue: {
@@ -42,7 +51,7 @@ const props = defineProps({
   }
 })
 
-const emit = defineEmits(['send', 'attachment-click', 'update:modelValue'])
+const emit = defineEmits(['send', 'attachment-click', 'update:modelValue', 'voice-message'])
 const message = ref(props.modelValue)
 const textareaRef = ref(null)
 
@@ -96,6 +105,10 @@ const handlePaste = async (event) => {
     message.value = ''
   }
 }
+
+const handleVoiceMessage = (audioBlob) => {
+  emit('voice-message', audioBlob)
+}
 </script>
 
 <style lang="scss" scoped>
@@ -112,7 +125,7 @@ const handlePaste = async (event) => {
 .custom-input-wrapper {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   background: var(--message-bubble-bg);
   border-radius: 24px;
   padding: 8px 16px;
@@ -140,6 +153,8 @@ const handlePaste = async (event) => {
   color: var(--darkreader-text--q-dark);
   vertical-align: middle;
   min-height: 24px;
+  height: 24px;
+  overflow-y: hidden;
 
   &::placeholder {
     color: var(--secondary-text);
@@ -159,10 +174,11 @@ const handlePaste = async (event) => {
   }
 }
 
-.send-btn {
+.send-btn, .voice-message-btn {
   position: absolute;
   right: 8px;
-  bottom: 4px;
+  bottom: 50%;
+  transform: translateY(50%);
   color: var(--q-primary);
   opacity: 0.9;
   transition: opacity 0.2s ease;

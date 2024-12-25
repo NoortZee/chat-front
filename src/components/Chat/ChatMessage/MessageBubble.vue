@@ -1,58 +1,110 @@
 <template>
   <div class="message-container">
-    <q-avatar v-if="!isOwn" size="28px" class="message-avatar">
-      <img :src="avatar || 'https://cdn.quasar.dev/img/avatar.png'" />
-    </q-avatar>
-    <div
-      class="message-bubble q-pa-sm"
-      :class="{
-        'message-bubble--own': isOwn,
-        'message-bubble--other': !isOwn
-      }"
-      @contextmenu.prevent="showContextMenu($event)"
-    >
-      <div class="message-wrapper">
-        <div v-if="!isOwn" class="text-caption text-weight-bold q-mb-xs">{{ username }}</div>
-        <div class="message-content" :class="{ 'with-files': files?.length }">
-          <div v-if="files?.length" class="files-content q-mb-sm">
-            <div 
-              v-for="(file, index) in files" 
-              :key="index"
-              class="file-item q-mb-sm"
-              :data-index="index"
-            >
-              <div v-if="file.type.startsWith('image/')" class="image-preview">
-                <img :src="file.url" @click="openFile(file)" />
-                <q-btn
-                  flat
-                  round
-                  dense
-                  icon="download"
-                  class="download-btn"
-                  @click.stop="downloadFile(file)"
-                />
-              </div>
-              <div v-else class="file-info">
-                <q-icon :name="getFileIcon(file.type)" size="24px" class="q-mr-sm" />
-                <div class="file-details" @click="openFile(file)">
-                  <div class="file-name text-weight-medium">{{ file.name }}</div>
-                  <div class="file-size text-caption">{{ formatFileSize(file.size) }}</div>
-                </div>
-                <q-btn
-                  flat
-                  round
-                  dense
-                  icon="download"
-                  @click.stop="downloadFile(file)"
+    <!-- Для обычных сообщений -->
+    <template v-if="type !== 'voice'">
+      <q-avatar v-if="!isOwn" size="28px" class="message-avatar">
+        <img :src="avatar || 'https://cdn.quasar.dev/img/avatar.png'" />
+      </q-avatar>
+      <div
+        class="message-bubble q-pa-sm"
+        :class="{
+          'message-bubble--own': isOwn,
+          'message-bubble--other': !isOwn
+        }"
+        @contextmenu.prevent="showContextMenu($event)"
+      >
+        <div class="message-wrapper">
+          <div v-if="!isOwn" class="text-caption text-weight-bold q-mb-xs">{{ username }}</div>
+          <div class="message-content" :class="{ 'with-files': files?.length }">
+            <div v-if="files?.length" class="files-content q-mb-sm">
+              <div 
+                v-for="(file, index) in files" 
+                :key="index"
+                class="file-item q-mb-sm"
+                :data-index="index"
+              >
+                <div v-if="file.type.startsWith('image/')" class="image-preview">
+                  <img :src="file.url" @click="openFile(file)" />
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    icon="download"
+                    class="download-btn"
+                    @click.stop="downloadFile(file)"
                   />
+                </div>
+                <div v-else class="file-info">
+                  <q-icon :name="getFileIcon(file.type)" size="24px" class="q-mr-sm" />
+                  <div class="file-details" @click="openFile(file)">
+                    <div class="file-name text-weight-medium">{{ file.name }}</div>
+                    <div class="file-size text-caption">{{ formatFileSize(file.size) }}</div>
+                  </div>
+                  <q-btn
+                    flat
+                    round
+                    dense
+                    icon="download"
+                    @click.stop="downloadFile(file)"
+                    />
+                </div>
               </div>
             </div>
+            <div v-if="text" class="message-text" v-html="processedText"></div>
+            <div class="message-meta">
+              <span class="message-time text-caption text-grey-7">
+                {{ time }}
+                <span v-if="isEdited" class="edited-mark">(изменено)</span>
+              </span>
+              <q-icon
+                v-if="isOwn"
+                :name="statusIcon"
+                :color="statusColor"
+                size="16px"
+                class="q-ml-xs"
+              />
+            </div>
           </div>
-          <div v-if="text" class="message-text" v-html="processedText"></div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Для голосовых сообщений -->
+    <template v-else>
+      <div 
+        class="voice-message-container"
+        :class="{ 'voice-message-container--own': isOwn }"
+        @contextmenu.prevent="showContextMenu($event)"
+      >
+        <q-avatar v-if="!isOwn" size="28px" class="message-avatar">
+          <img :src="avatar || 'https://cdn.quasar.dev/img/avatar.png'" />
+        </q-avatar>
+        <div class="voice-message-content">
+          <div v-if="!isOwn" class="text-caption text-weight-bold q-mb-xs">{{ username }}</div>
+          <div class="voice-message-player">
+            <q-btn
+              round
+              flat
+              :icon="isPlaying ? 'pause' : 'play_arrow'"
+              :color="isPlaying ? 'negative' : 'primary'"
+              @click="togglePlay"
+              size="sm"
+            />
+            
+            <div class="progress-container" @click="seekAudio">
+              <div 
+                class="progress-bar"
+                :style="{ width: `${(currentTime / duration) * 100}%` }"
+              ></div>
+            </div>
+
+            <span class="duration text-caption">
+              {{ formatDuration(currentTime) }} / {{ formatDuration(duration) }}
+            </span>
+          </div>
           <div class="message-meta">
             <span class="message-time text-caption text-grey-7">
               {{ time }}
-              <span v-if="isEdited" class="edited-mark">(изменено)</span>
             </span>
             <q-icon
               v-if="isOwn"
@@ -64,7 +116,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </template>
 
     <!-- Контекстное меню для сообщений -->
     <q-menu
@@ -248,7 +300,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue'
 
 const props = defineProps({
   id: {
@@ -261,7 +313,7 @@ const props = defineProps({
   },
   text: {
     type: String,
-    required: true
+    default: ''
   },
   time: {
     type: String,
@@ -290,6 +342,18 @@ const props = defineProps({
   deletedFor: {
     type: Array,
     default: () => []
+  },
+  type: {
+    type: String,
+    default: 'text'
+  },
+  audioUrl: {
+    type: String,
+    default: ''
+  },
+  duration: {
+    type: Number,
+    default: 0
   }
 })
 
@@ -310,6 +374,25 @@ const ZOOM_STEP = 0.1
 const imageRef = ref(null)
 const deleteType = ref(null)
 const selectedContent = ref({ isFile: false, content: null, file: null })
+
+// Состояние аудиоплеера
+const isPlaying = ref(false)
+const currentTime = ref(0)
+const audioElement = ref(null)
+
+// Инициализация аудио при монтировании
+if (props.type === 'voice' && props.audioUrl) {
+  audioElement.value = new Audio(props.audioUrl)
+  
+  audioElement.value.addEventListener('timeupdate', () => {
+    currentTime.value = audioElement.value.currentTime
+  })
+  
+  audioElement.value.addEventListener('ended', () => {
+    isPlaying.value = false
+    currentTime.value = 0
+  })
+}
 
 const showContextMenu = (event) => {
   // Определяем, кликнул ли пользователь на файл/изображение
@@ -579,6 +662,46 @@ const copyContent = async () => {
   }
   showMenu.value = false
 }
+
+// Форматирование длительности
+const formatDuration = (seconds) => {
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = Math.floor(seconds % 60)
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+}
+
+// Переключение воспроизведения
+const togglePlay = () => {
+  if (!audioElement.value) return
+
+  if (isPlaying.value) {
+    audioElement.value.pause()
+  } else {
+    audioElement.value.play()
+  }
+  isPlaying.value = !isPlaying.value
+}
+
+// Добавляем функцию для перемотки аудио
+const seekAudio = (event) => {
+  if (!audioElement.value) return
+  
+  const container = event.currentTarget
+  const rect = container.getBoundingClientRect()
+  const x = event.clientX - rect.left
+  const percentage = x / rect.width
+  
+  audioElement.value.currentTime = percentage * props.duration
+}
+
+// Обновляем очистку при размонтировании
+onUnmounted(() => {
+  if (audioElement.value) {
+    audioElement.value.pause()
+    audioElement.value.src = ''
+    audioElement.value = null
+  }
+})
 </script>
 
 <style lang="scss" scoped>
@@ -1061,5 +1184,105 @@ const copyContent = async () => {
   &:hover {
     text-decoration: underline;
   }
+}
+
+.voice-message-container {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  max-width: 400px;
+  width: fit-content;
+  margin: 4px 0;
+
+  &--own {
+    margin-left: auto;
+    flex-direction: row-reverse;
+
+    .voice-message-content {
+      align-items: flex-end;
+    }
+
+    .voice-message-player {
+      background: var(--q-primary);
+
+      .progress-container {
+        background: rgba(255, 255, 255, 0.2);
+      }
+
+      .progress-bar {
+        background: white;
+      }
+
+      .duration {
+        color: rgba(255, 255, 255, 0.8);
+      }
+    }
+
+    .message-meta {
+      justify-content: flex-end;
+    }
+
+    .text-grey-7 {
+      color: rgba(255, 255, 255, 0.7) !important;
+    }
+  }
+}
+
+.voice-message-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.voice-message-player {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  gap: 8px;
+  min-width: 250px;
+  background: var(--message-bubble-bg);
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+
+  .q-btn {
+    margin: 0;
+    background-color: #2B2B2B;
+    border-radius: 100%;
+
+
+    :deep(.q-icon) {
+      color: white;
+    }
+  }
+
+  &--own {
+    .q-btn {
+      :deep(.q-focus-helper) {
+        background-color: rgba(255, 255, 255, 0.2);
+      }
+    }
+  }
+
+  .progress-container {
+    flex: 1;
+    height: 4px;
+    background: var(--q-material-text-color);
+    opacity: 0.2;
+    border-radius: 2px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .progress-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100%;
+    background: var(--q-primary);
+    transition: width 0.1s linear;
+  }
+
+
 }
 </style> 

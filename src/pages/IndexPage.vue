@@ -1,13 +1,19 @@
 <template>
   <q-page class="flex flex-center">
-    <img
-      alt="Quasar logo"
-      src="~assets/quasar-logo-vertical.svg"
-      style="width: 200px; height: 200px"
-    >
+    <div class="q-pa-md">
+      <h5>Пример записи голосового сообщения</h5>
+      <voice-message />
+    </div>
   </q-page>
 </template>
 
-<script setup>
-//
+<script>
+import VoiceMessage from 'components/VoiceMessage.vue'
+
+export default {
+  name: 'IndexPage',
+  components: {
+    VoiceMessage
+  }
+}
 </script>

@@ -9,7 +9,7 @@
         'message-bubble--own': isOwn,
         'message-bubble--other': !isOwn
       }"
-      @contextmenu.prevent="showContextMenu"
+      @contextmenu.prevent="showContextMenu($event)"
     >
       <div class="message-wrapper">
         <div v-if="!isOwn" class="text-caption text-weight-bold q-mb-xs">{{ username }}</div>
@@ -19,6 +19,7 @@
               v-for="(file, index) in files" 
               :key="index"
               class="file-item q-mb-sm"
+              :data-index="index"
             >
               <div v-if="file.type.startsWith('image/')" class="image-preview">
                 <img :src="file.url" @click="openFile(file)" />
@@ -47,7 +48,7 @@
               </div>
             </div>
           </div>
-          <div v-if="text" class="message-text">{{ text }}</div>
+          <div v-if="text" class="message-text" v-html="processedText"></div>
           <div class="message-meta">
             <span class="message-time text-caption text-grey-7">
               {{ time }}
@@ -72,7 +73,7 @@
       class="custom-context-menu"
     >
       <div class="menu-list">
-        <template v-if="isOwn">
+        <template v-if="isOwn && !selectedContent.isFile">
           <div 
             class="menu-item"
             @click="handleEditClick()"
@@ -81,6 +82,14 @@
             <span>Редактировать</span>
           </div>
         </template>
+
+        <div 
+          class="menu-item"
+          @click="copyContent"
+        >
+          <q-icon name="content_copy" size="20px" />
+          <span>{{ selectedContent.isFile ? 'Копировать вложение' : 'Копировать' }}</span>
+        </div>
 
         <div class="menu-item delete" @click="handleDeleteClick">
           <q-icon name="delete" size="20px" />
@@ -300,8 +309,25 @@ const MAX_ZOOM = 5
 const ZOOM_STEP = 0.1
 const imageRef = ref(null)
 const deleteType = ref(null)
+const selectedContent = ref({ isFile: false, content: null, file: null })
 
-const showContextMenu = () => {
+const showContextMenu = (event) => {
+  // Определяем, кликнул ли пользователь на файл/изображение
+  const fileItem = event.target.closest('.file-item')
+  if (fileItem) {
+    const fileIndex = parseInt(fileItem.getAttribute('data-index'))
+    selectedContent.value = {
+      isFile: true,
+      content: null,
+      file: props.files[fileIndex]
+    }
+  } else {
+    selectedContent.value = {
+      isFile: false,
+      content: props.text,
+      file: null
+    }
+  }
   showMenu.value = true
 }
 
@@ -508,6 +534,50 @@ const confirmDelete = (type) => {
   emit('delete-message', type)
   showDeleteDialog.value = false
   deleteType.value = null
+}
+
+const processedText = computed(() => {
+  if (!props.text) return ''
+  // Регулярное выражение для поиска URL в тексте
+  const urlRegex = /(https?:\/\/[^\s]+)/g
+  return props.text.replace(urlRegex, url => `<a href="${url}" target="_blank" class="message-link">${url}</a>`)
+})
+
+const copyContent = async () => {
+  if (selectedContent.value.isFile) {
+    const file = selectedContent.value.file
+    if (file) {
+      if (file.type.startsWith('image/')) {
+        try {
+          // Получаем изображение
+          const response = await fetch(file.url)
+          const blob = await response.blob()
+          
+          // Копируем изображение в буфер обмена
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              [file.type]: blob
+            })
+          ])
+        } catch (err) {
+          console.error('Ошибка при копировании изображения:', err)
+        }
+      } else {
+        // Для не-изображений копируем URL
+        const tempInput = document.createElement('input')
+        tempInput.value = file.url
+        document.body.appendChild(tempInput)
+        tempInput.select()
+        document.execCommand('copy')
+        document.body.removeChild(tempInput)
+      }
+    }
+  } else {
+    if (props.text) {
+      await navigator.clipboard.writeText(props.text)
+    }
+  }
+  showMenu.value = false
 }
 </script>
 
@@ -981,6 +1051,15 @@ const confirmDelete = (type) => {
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+}
+
+.message-link {
+  color: #1976d2;
+  text-decoration: none;
+  
+  &:hover {
+    text-decoration: underline;
   }
 }
 </style> 

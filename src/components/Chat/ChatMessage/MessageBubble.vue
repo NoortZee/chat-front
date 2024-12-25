@@ -51,9 +51,21 @@
     <q-menu
       v-model="showMenu"
       context-menu
+      class="message-context-menu"
     >
-      <q-list style="min-width: 180px">
-        <q-item v-if="isOwn" clickable v-close-popup @click="$emit('edit-message')">
+      <q-list style="width: 200px">
+        <q-item clickable v-close-popup @click="files?.length > 1 ? downloadAllFiles() : downloadFile(files[0])" :disable="!files?.length">
+          <q-item-section>
+            <q-item-label class="ellipsis">
+              <q-icon name="download" size="xs" class="q-mr-sm" />
+              {{ files?.length > 1 ? 'Скачать все файлы' : 'Скачать файл' }}
+            </q-item-label>
+          </q-item-section>
+        </q-item>
+
+        <q-separator />
+
+        <q-item clickable v-close-popup @click="$emit('edit-message')" :disable="!isOwn">
           <q-item-section>
             <q-item-label>
               <q-icon name="edit" size="xs" class="q-mr-sm" />
@@ -136,6 +148,19 @@ const showDeleteOptions = ref(false)
 const showContextMenu = () => {
   showMenu.value = true
   showDeleteOptions.value = false
+}
+
+const downloadFile = (file) => {
+  const link = document.createElement('a')
+  link.href = file.url
+  link.download = file.name
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+}
+
+const downloadAllFiles = () => {
+  props.files.forEach(file => downloadFile(file))
 }
 
 const statusIcon = computed(() => {
@@ -347,6 +372,18 @@ const openFile = (file) => {
     &:hover {
       background: rgba(255, 255, 255, 0.15);
     }
+  }
+}
+
+.message-context-menu {
+  :deep(.q-item) {
+    min-height: 40px;
+    padding: 8px 16px;
+  }
+
+  :deep(.q-item__label) {
+    line-height: 20px;
+    white-space: nowrap;
   }
 }
 </style> 

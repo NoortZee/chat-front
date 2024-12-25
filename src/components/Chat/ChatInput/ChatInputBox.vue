@@ -40,12 +40,27 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 
-const emit = defineEmits(['send', 'attachment-click'])
-const message = ref('')
+const props = defineProps({
+  modelValue: {
+    type: String,
+    default: ''
+  }
+})
+
+const emit = defineEmits(['send', 'attachment-click', 'update:modelValue'])
+const message = ref(props.modelValue)
 const textareaRef = ref(null)
 const fileInput = ref(null)
+
+watch(() => props.modelValue, (newVal) => {
+  message.value = newVal
+})
+
+watch(() => message.value, (newVal) => {
+  emit('update:modelValue', newVal)
+})
 
 const onSubmit = () => {
   if (message.value.trim()) {

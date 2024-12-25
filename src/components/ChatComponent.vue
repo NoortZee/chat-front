@@ -74,6 +74,7 @@
           <ChatInputBox
             @send="sendMessage"
             @attachment-click="handleAttachment"
+            v-model="currentMessage"
           />
         </div>
         <div v-else class="column full-height items-center justify-center text-grey">
@@ -210,20 +211,19 @@ const handleAttachment = ({ files, description }) => {
     id: Date.now() + Math.random(),
     userId: currentUserId,
     username: 'Вы',
-    text: description || `Отправлено файлов: ${files.length}`,
+    text: description || '',
     time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     status: 'sent',
     files: files.map(file => ({
       name: file.name,
       size: file.size,
       type: file.type,
-      // В реальном приложении здесь будет URL файла с сервера
       url: file.type.startsWith('image/') ? URL.createObjectURL(file) : null
     }))
   }
 
   selectedChat.value.messages.push(message)
-  selectedChat.value.lastMessage = message.text
+  selectedChat.value.lastMessage = description || 'Файлы'
   selectedChat.value.lastMessageTime = message.time
 
   scrollToBottom()
@@ -352,6 +352,7 @@ const handleDrop = (event) => {
   const files = Array.from(event.dataTransfer.files)
   if (files.length > 0) {
     selectedFiles.value = files
+    currentMessage.value = document.querySelector('.custom-textarea').value
     showUploadDialog.value = true
   }
 }

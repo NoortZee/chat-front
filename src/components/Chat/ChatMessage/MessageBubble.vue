@@ -109,8 +109,8 @@
     </q-menu>
 
     <!-- Модальное окно для просмотра изображений -->
-    <q-dialog v-model="showImageDialog" maximized>
-      <div class="fullscreen-dialog" @click="showImageDialog = false">
+    <q-dialog v-model="showImageDialog" maximized @keydown.prevent="handleKeyDown">
+      <div class="fullscreen-dialog" @click="showImageDialog = false" @wheel="handleWheel">
         <div class="image-container" @click.stop>
           <q-btn
             flat
@@ -120,7 +120,12 @@
             class="close-btn"
             @click="showImageDialog = false"
           />
-          <img :src="selectedImage?.url" v-if="selectedImage" />
+          <img 
+            :src="selectedImage?.url" 
+            v-if="selectedImage" 
+            :style="{ transform: `scale(${zoomLevel})` }"
+            ref="imageRef"
+          />
         </div>
       </div>
     </q-dialog>
@@ -128,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 
 const props = defineProps({
   isOwn: {
@@ -167,6 +172,11 @@ const showMenu = ref(false)
 const showDeleteOptions = ref(false)
 const showImageDialog = ref(false)
 const selectedImage = ref(null)
+const zoomLevel = ref(1)
+const MIN_ZOOM = 0.1
+const MAX_ZOOM = 5
+const ZOOM_STEP = 0.1
+const imageRef = ref(null)
 
 const showContextMenu = () => {
   showMenu.value = true
@@ -234,6 +244,72 @@ const openFile = (file) => {
     window.open(file.url, '_blank')
   }
 }
+
+const handleWheel = (event) => {
+  if (event.ctrlKey) {
+    event.preventDefault()
+    event.stopPropagation()
+    
+    const img = imageRef.value
+    if (!img) return
+
+    const rect = img.getBoundingClientRect()
+    const mouseX = (event.clientX - rect.left) / rect.width
+    const mouseY = (event.clientY - rect.top) / rect.height
+
+    const oldZoom = zoomLevel.value
+    if (event.deltaY < 0) {
+      zoomIn()
+    } else {
+      zoomOut()
+    }
+
+    // Обновляем точку трансформации
+    img.style.transformOrigin = `${mouseX * 100}% ${mouseY * 100}%`
+  }
+}
+
+const handleKeyDown = (event) => {
+  if (event.ctrlKey) {
+    if (event.key === '=' || event.key === '+') {
+      event.preventDefault()
+      const img = imageRef.value
+      if (img) {
+        // При масштабировании клавишами используем центр изображения
+        img.style.transformOrigin = 'center center'
+      }
+      zoomIn()
+    } else if (event.key === '-') {
+      event.preventDefault()
+      const img = imageRef.value
+      if (img) {
+        img.style.transformOrigin = 'center center'
+      }
+      zoomOut()
+    }
+  }
+}
+
+const zoomIn = () => {
+  if (zoomLevel.value < MAX_ZOOM) {
+    zoomLevel.value = Math.min(zoomLevel.value + ZOOM_STEP, MAX_ZOOM)
+  }
+}
+
+const zoomOut = () => {
+  if (zoomLevel.value > MIN_ZOOM) {
+    zoomLevel.value = Math.max(zoomLevel.value - ZOOM_STEP, MIN_ZOOM)
+  }
+}
+
+watch(showImageDialog, (newValue) => {
+  if (!newValue) {
+    zoomLevel.value = 1
+    if (imageRef.value) {
+      imageRef.value.style.transformOrigin = 'center center'
+    }
+  }
+})
 </script>
 
 <style lang="scss" scoped>
@@ -424,6 +500,7 @@ const openFile = (file) => {
   align-items: center;
   justify-content: center;
   position: relative;
+  overflow: hidden;
 
   .close-btn {
     position: fixed;
@@ -443,6 +520,10 @@ const openFile = (file) => {
   position: relative;
   max-width: 95%;
   max-height: 95vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
   
   img {
     max-width: 100%;
@@ -450,6 +531,10 @@ const openFile = (file) => {
     object-fit: contain;
     border-radius: 4px;
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+    transition: transform 0.1s ease-out;
+    transform-origin: center center;
+    user-select: none;
+    pointer-events: none;
   }
 }
 
